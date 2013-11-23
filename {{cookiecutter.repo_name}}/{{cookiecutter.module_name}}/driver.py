@@ -17,7 +17,7 @@ from marconi.queues import transport
 
 
 _OPTIONS = []
-_OPTIONS_GROUP = 'queues:drivers:transport:{{ cookiecutter.module_name }}'
+_OPTIONS_GROUP = 'drivers:transport:{{ cookiecutter.module_name }}'
 
 LOG = logging.getLogger(__name__)
 
