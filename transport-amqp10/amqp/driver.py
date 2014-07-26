@@ -33,10 +33,7 @@ _AMQP_OPTIONS = (
                 help='Address on which the self-hosting server will listen.'),
     cfg.IntOpt('port',
                 default='8888',
-                help='Port on which the self-hosting server will listen.'),
-    cfg.StrOpt('verbose',
-                default=False,
-                help='Print debug information'),
+                help='Port on which the self-hosting server will listen.')
 )
 
 _AMQP_GROUP = 'drivers:transport:amqp'
@@ -50,7 +47,7 @@ class Driver(transport.DriverBase):
         super(Driver, self).__init__(conf, storage, cache, control)
 
         self._conf.register_opts(_AMQP_OPTIONS, group=_AMQP_GROUP)
-        self._transport_conf = self._conf[_AMQP_GROUP]
+        self._amqp_conf = self._conf[_AMQP_GROUP]
         self._validate = validation.Validator(self._conf)
 
         self._init_routes()
@@ -66,12 +63,11 @@ class Driver(transport.DriverBase):
     def listen(self):
         """Self-host using 'bind' and 'port' from the AMQP config group."""
 
-        # NOTE(vkmc) We will gather this information from the
-        # config
-        opts = "amqp://127.0.0.1:8888"
-
         msgtmpl = _(u'Serving on host %(bind)s:%(port)s')
         LOG.info(msgtmpl,
-                 {'bind': 'amqp://127.0.0.1', 'port': '8888'})
+                 {'bind': self._amqp_conf.bind, 'port': self._amqp_conf.port})
+
+        # I know this is ugly
+        opts = self._amqp_conf.bind + ':' + str(self._amqp_conf.port)
 
         eventloop.run(opts, self.controllers)

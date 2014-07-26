@@ -27,16 +27,48 @@ class CollectionResource(object):
         self.message_controller = message_controller
         self.queue_controller = queue_controller
 
-    def on_post(self, message, project_id, queue_name):
+    def on_post(self, message, queue_name):
 
         client_id = uuid.uuid4()
-        m = utils.proton_to_marconi(message)
+        marconi_message = utils.proton_to_marconi(message)
 
-        if not self.queue_controller.exists(queue_name, project_id):
-            self.queue_controller.create(queue_name, project_id)
+        # NOTE(vkmc): This control has to be removed since exists()
+        # is deprecated
+        if not self.queue_controller.exists(queue_name):
+            self.queue_controller.create(queue_name)
 
         self.message_controller.post(
             queue_name,
-            messages=m,
-            project=project_id,
+            messages=marconi_message,
             client_uuid=client_id)
+
+    def on_get(self, queue_name):
+
+        try:
+            results = self.message_controller.list(queue_name)
+
+            # Buffer messages
+            cursor = next(results)
+            messages = list(cursor)
+        except Exception as ex:
+            LOG.exception(ex)
+
+        if not messages:
+            proton_messages = []
+        else:
+            # Found some messages, so convert them to Proton Messages
+            proton_messages = []
+            for each_message in messages:
+                msg = utils.marconi_to_proton(each_message)
+                proton_messages.append(msg)
+
+        return proton_messages
+
+    def on_delete(self, queue_name):
+
+        # NOTE(vkmc) Cannot keep the message id
+        # I directly remove the queue
+        try:
+            self.queue_controller.delete(queue_name)
+        except Exception as ex:
+            LOG.exception(ex)

@@ -19,9 +19,7 @@
 
 import select
 import time
-import uuid
 import utils
-
 from proton import Message
 import pyngus
 
@@ -93,18 +91,18 @@ class SocketConnection(pyngus.ConnectionEventHandler):
     # ConnectionEventHandler callbacks:
 
     def connection_remote_closed(self, connection, reason):
-        LOG.debug("Connection remote closed!")
+        LOG.debug("Connection remote closed")
         # The remote has closed its end of the Connection.  Close my end to
         # complete the close of the Connection:
         self.connection.close()
 
     def connection_closed(self, connection):
-        LOG.debug("Connection closed.")
+        LOG.debug("Connection closed")
         # main loop will destroy
         self.closed = True
 
     def connection_failed(self, connection, error):
-        LOG.error("Connection failed! error=%s", str(error))
+        LOG.error("Connection failed! error = %s", str(error))
         # No special recovery - just close it:
         self.connection.close()
 
@@ -112,20 +110,20 @@ class SocketConnection(pyngus.ConnectionEventHandler):
                          name, requested_source, properties):
         LOG.debug("Connection sender requested")
         if requested_source is None:
-            # the peer has requested us to create a source node. Pretend we do
-            # this, and supply a dummy name
-            requested_source = uuid.uuid4().hex
-        sender = SenderLink(self, self.controllers, link_handle, requested_source)
+            # the peer has requested us to create a source node.
+            # select general queue
+            requested_source = 'uncategorized'
+        sender = SenderLink(self, link_handle, requested_source, self.controllers)
         self.sender_links.add(sender)
 
     def receiver_requested(self, connection, link_handle,
                            name, requested_target, properties):
         LOG.debug("Receiver requested callback")
         if requested_target is None:
-            # the peer has requested us to create a target node. Pretend we do
-            # this, and supply a dummy name
-            requested_target = uuid.uuid4().hex
-        receiver = ReceiverLink(self, self.controllers, link_handle, requested_target)
+            # the peer has requested us to create a target node.
+            # select general queue
+            requested_target = 'uncategorized'
+        receiver = ReceiverLink(self, link_handle, requested_target, self.controllers)
         self.receiver_links.add(receiver)
 
     # SASL callbacks:
@@ -136,34 +134,45 @@ class SocketConnection(pyngus.ConnectionEventHandler):
         pn_sasl.done(pn_sasl.OK)
 
     def sasl_done(self, connection, pn_sasl, result):
-        LOG.debug("SASL done callback, result=%s", str(result))
+        LOG.debug("SASL done callback, result = %s", str(result))
 
 
 class SenderLink(pyngus.SenderEventHandler):
     """Send messages until credit runs out."""
-    def __init__(self, socket_conn, controllers, handle, src_addr=None):
+    def __init__(self, socket_conn, handle, src_addr, controllers):
         self.socket_conn = socket_conn
         sl = socket_conn.connection.accept_sender(handle,
                                                   source_override=src_addr,
                                                   event_handler=self)
         self.sender_link = sl
         self.sender_link.open()
-        print("New sender link created, name=%s" % sl.name)
+        print("New sender link created, name = %s" % sl.name)
 
         self.controllers = controllers
 
     def destroy(self):
-        print("Sender link destroyed, name=%s" % self.sender_link.name)
+        print("Sender link destroyed, name = %s" % self.sender_link.name)
         self.socket_conn.sender_links.discard(self)
         self.socket_conn = None
         self.sender_link.destroy()
         self.sender_link = None
 
     def send_message(self):
-        msg = Message()
-        msg.body = "Hi There!"
-        LOG.debug("Sender: Sending message...")
-        self.sender_link.send(msg, self)
+        queue = self.sender_link.source_address
+        LOG.debug("Sender: Sending messages...")
+        message = self.controllers.on_get(queue)
+
+        # if there was a message in the queue
+        # destroy the message once consumed
+        # else return an empty message
+        if message:
+            self.controllers.on_delete(queue)
+        else:
+            message.append(Message())
+
+        # NOTE(vkmc) We return the first message on the list
+        # but the idea is to return every message in the queue
+        self.sender_link.send(message[0], self)
 
     # SenderEventHandler callbacks:
 
@@ -182,14 +191,14 @@ class SenderLink(pyngus.SenderEventHandler):
         self.destroy()
 
     def credit_granted(self, sender_link):
-        LOG.debug("Sender: credit granted")
+        LOG.debug("Sender: Credit granted")
         # Send a single message:
         if sender_link.credit > 0:
             self.send_message()
 
     # 'message sent' callback:
     def __call__(self, sender, handle, status, error=None):
-        print("Message sent on Sender link %s, status=%s" %
+        print("Message sent on sender link %s, status = %s" %
               (self.sender_link.name, status))
         if self.sender_link.credit > 0:
             # send another message:
@@ -198,7 +207,7 @@ class SenderLink(pyngus.SenderEventHandler):
 
 class ReceiverLink(pyngus.ReceiverEventHandler):
     """Receive messages, and drop them."""
-    def __init__(self, socket_conn, controllers, handle, rx_addr=None):
+    def __init__(self, socket_conn, handle, rx_addr, controllers):
         self.socket_conn = socket_conn
         rl = socket_conn.connection.accept_receiver(handle,
                                                     target_override=rx_addr,
@@ -207,12 +216,12 @@ class ReceiverLink(pyngus.ReceiverEventHandler):
         self.receiver_link.open()
         self.receiver_link.add_capacity(1)
 
-        print("New receiver link created, name=%s" % rl.name)
+        print("New receiver link created, name = %s" % rl.name)
 
         self.controllers = controllers
 
     def destroy(self):
-        print("Receiver link destroyed, name=%s" % self.receiver_link.name)
+        print("Receiver link destroyed, name = %s" % self.receiver_link.name)
         self.socket_conn.receiver_links.discard(self)
         self.socket_conn = None
         self.receiver_link.destroy()
@@ -234,33 +243,30 @@ class ReceiverLink(pyngus.ReceiverEventHandler):
 
     def message_received(self, receiver_link, message, handle):
         self.receiver_link.message_accepted(handle)
-        print("Message received on Receiver link %s, message=%s"
+        print("Message received on receiver link %s, message = %s"
               % (self.receiver_link.name, str(message)))
         if receiver_link.capacity < 1:
             receiver_link.add_capacity(1)
-        project_id = 'myproject'
         queue = receiver_link.target_address
-        self.controllers.on_post(message, project_id, queue)
+        self.controllers.on_post(message, queue)
 
 
 def run(opts, controllers):
 
     # Create a socket for inbound connections
-    #
+    # For now the address is the only opt
     host, port = utils.get_host_port(opts)
     s = utils.server_socket(host, port)
 
-    # create an AMQP container that will 'provide' the Server service
-    #
+    # Create an AMQP container that will provide the server service
     container = pyngus.Container("Marconi")
     socket_connections = set()
 
-    # Main loop: process I/O and timer events:
-    #
+    # Main loop: process I/O and timer events
     while True:
         readers, writers, timers = container.need_processing()
 
-        # map pyngus Connections back to my SocketConnections:
+        # Map pyngus Connections back to my SocketConnections:
         readfd = [c.user_context for c in readers]
         writefd = [c.user_context for c in writers]
 
@@ -279,10 +285,9 @@ def run(opts, controllers):
         worked = set()
         for r in readable:
             if r is s:
-                # new inbound connection request received,
+                # new inbound connection request received
                 # create a new SocketConnection for it:
                 client_socket, client_address = s.accept()
-                # name = uuid.uuid4().hex
                 name = str(client_address)
                 conn_properties = {}
                 sconn = SocketConnection(container,
