@@ -16,7 +16,7 @@ import errno
 import re
 import socket
 
-import marconi.openstack.common.log as logging
+import zaqar.openstack.common.log as logging
 
 LOG = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def server_socket(host, port, backlog=10):
     return s
 
 
-def proton_to_marconi(message):
+def proton_to_zaqar(message):
     """Convert a Proton Message into a storage compatible message"""
     default_ttl = 100 if message.ttl == 0 else message.ttl
 
@@ -83,7 +83,7 @@ def proton_to_marconi(message):
                                                                   'format': message.format}}]
 
 
-def marconi_to_proton(message):
+def zaqar_to_proton(message):
     """Convert a message retrieved from storage to a Proton message"""
     msg = Message()
 

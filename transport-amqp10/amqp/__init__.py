@@ -13,7 +13,7 @@
 
 """AMQP Transport Drivers"""
 
-from marconi.queues.transport.amqp import driver
+from zaqar.queues.transport.amqp import driver
 
 # Hoist into package namespace
 Driver = driver.Driver

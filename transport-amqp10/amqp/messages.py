@@ -13,8 +13,8 @@
 
 import uuid
 
-import marconi.openstack.common.log as logging
-from marconi.queues.transport.amqp import utils
+import zaqar.openstack.common.log as logging
+from zaqar.queues.transport.amqp import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class CollectionResource(object):
     def on_post(self, message, queue_name):
 
         client_id = uuid.uuid4()
-        marconi_message = utils.proton_to_marconi(message)
+        zaqar_message = utils.proton_to_zaqar(message)
 
         # NOTE(vkmc): This control has to be removed since exists()
         # is deprecated
@@ -39,7 +39,7 @@ class CollectionResource(object):
 
         self.message_controller.post(
             queue_name,
-            messages=marconi_message,
+            messages=zaqar_message,
             client_uuid=client_id)
 
     def on_get(self, queue_name):
@@ -59,7 +59,7 @@ class CollectionResource(object):
             # Found some messages, so convert them to Proton Messages
             proton_messages = []
             for each_message in messages:
-                msg = utils.marconi_to_proton(each_message)
+                msg = utils.zaqar_to_proton(each_message)
                 proton_messages.append(msg)
 
         return proton_messages

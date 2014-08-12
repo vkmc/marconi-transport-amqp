@@ -1,4 +1,4 @@
-POC AMQP 1.0 transport driver for Marconi
+POC AMQP 1.0 transport driver for Zaqar
 =========================================
 
 Based on the cool cookiecutter template by flaper87
@@ -7,7 +7,7 @@ Based on the cool cookiecutter template by flaper87
 Features
 ========
 
-This basic implementation allows Marconi to send and receive messages with AMQP clients following the producer/consumer pattern.
+This basic implementation allows Zaqar to send and receive messages with AMQP clients following the producer/consumer pattern.
 
 How to install
 ==============
@@ -27,9 +27,9 @@ Since this is an experimental driver, it would be advisable to deploy it in a vi
 How to use
 ==========
 
-Configure Marconi to use AMQP
+Configure Zaqar to use AMQP
 
-* Find [drivers] section in ``~/.marconi/marconi.conf`` and specify to use amqp transport
+* Find [drivers] section in ``~/.zaqar/zaqar.conf`` and specify to use amqp transport
 ``transport = amqp``
 
 * Add a ``[drivers:transport:amqp]`` section and select the host configuration
@@ -37,11 +37,11 @@ Configure Marconi to use AMQP
 
 ``host=amqp:127.0.0.1:8888 (default)``
 
-Run marconi-server
+Run zaqar-server
 
-  ``$ marconi-server -v``
+  ``$ zaqar-server -v``
 
-Use the examples provided in /examples to send and receive messages to and from the Marconi server
+Use the examples provided in /examples to send and receive messages to and from the Zaqar server
 
   ``$ ./send.py -a amqp://127.0.0.1:8888 --target 'myqueue' 'message'``
   

@@ -18,14 +18,14 @@ import pyngus
 
 from oslo.config import cfg
 
-import marconi.openstack.common.log as logging
-from marconi.openstack.common.gettextutils import _
-from marconi.queues import transport
-from marconi.queues.transport import auth
-from marconi.queues.transport import validation
-from marconi.queues.transport.amqp import utils
-from marconi.queues.transport.amqp import messages
-from marconi.queues.transport.amqp import eventloop
+import zaqar.openstack.common.log as logging
+from zaqar.openstack.common.gettextutils import _
+from zaqar.queues import transport
+from zaqar.queues.transport import auth
+from zaqar.queues.transport import validation
+from zaqar.queues.transport.amqp import utils
+from zaqar.queues.transport.amqp import messages
+from zaqar.queues.transport.amqp import eventloop
 
 _AMQP_OPTIONS = (
     cfg.StrOpt('bind',

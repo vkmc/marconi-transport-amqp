@@ -23,7 +23,7 @@ import utils
 from proton import Message
 import pyngus
 
-import marconi.openstack.common.log as logging
+import zaqar.openstack.common.log as logging
 
 LOG = logging.getLogger(__name__)
 
